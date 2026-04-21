@@ -1,0 +1,31 @@
+name: Changelog Entry
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+jobs:
+  changelog-entry-present:
+    if: >-
+      !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+      && !contains(github.event.pull_request.labels.*.name, 'dependencies')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify .changes/unreleased/ entry exists in this PR
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          added=$(git diff --name-only --diff-filter=A "$BASE" "$HEAD" \
+            | grep -E '^\.changes/unreleased/[^.].*\.md$' || true)
+          if [ -z "$added" ]; then
+            echo "::error::No .changes/unreleased/*.md file added in this PR."
+            echo "Run \`changie new\` and commit the generated file."
+            echo "If the change truly needs no changelog entry, add the 'skip-changelog' label to this PR."
+            exit 1
+          fi
+          echo "Found changelog entries:"
+          echo "$added"

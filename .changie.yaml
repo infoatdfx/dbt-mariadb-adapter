@@ -1,0 +1,31 @@
+changesDir: .changes
+unreleasedDir: unreleased
+headerPath: header.tpl.md
+changelogPath: CHANGELOG.md
+versionExt: md
+envPrefix: CHANGIE_
+versionFormat: '## dbt-mariadb {{.Version}} - {{.Time.Format "2006-01-02"}}'
+kindFormat: '### {{.Kind}}'
+changeFormat: '- {{.Body}}{{ if .Custom.Issue }} ([#{{.Custom.Issue}}](https://github.com/infoatdfx/dbt-mariadb-adapter/issues/{{.Custom.Issue}})){{ end }}{{ if .Custom.Author }} by @{{.Custom.Author}}{{ end }}'
+kinds:
+  - label: Breaking
+  - label: Features
+  - label: Fixes
+  - label: Under the Hood
+  - label: Dependencies
+  - label: Security
+  - label: Docs
+custom:
+  - key: Issue
+    label: GitHub issue / PR number
+    type: int
+    optional: true
+  - key: Author
+    label: GitHub handle
+    type: string
+    minLength: 1
+    optional: true
+newlines:
+  afterChangelogHeader: 1
+  beforeChangelogVersion: 1
+  endOfVersion: 1

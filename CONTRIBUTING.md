@@ -45,8 +45,15 @@ Open an issue describing the use case before starting larger work, so scope can 
     DBT_MARIADB_PORT=3307 make test-functional
     ```
 
-6. Commit (conventional commits preferred) and push your branch.
-7. Open a pull request against `main`. The PR description should state which MariaDB version(s) you tested against.
+6. Add a changelog entry with [changie](https://changie.dev/):
+
+    ```shell
+    changie new
+    ```
+
+    Pick a kind (Breaking / Features / Fixes / Under the Hood / Dependencies / Security / Docs), fill in the body, and optionally an issue/PR number and your GitHub handle. The generated file lives under `.changes/unreleased/` — commit it with your code. CI verifies that every non-docs PR ships a corresponding `.changes/unreleased/` entry.
+7. Commit (conventional commits preferred) and push your branch.
+8. Open a pull request against `main`. The PR description should state which MariaDB version(s) you tested against.
 
 ## Supported versions
 

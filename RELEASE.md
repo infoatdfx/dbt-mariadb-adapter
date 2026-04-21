@@ -1,37 +1,59 @@
 # Release Procedure
 
-1. [Bump version](#bump-version)
-2. [Distribute](#distribute)
-3. [GitHub release](#github-release)
+1. [Prepare changelog](#prepare-changelog)
+2. [Bump version](#bump-version)
+3. [Build & publish](#build--publish)
+4. [GitHub release](#github-release)
+
+## Prepare changelog
+
+We use [changie](https://changie.dev/) to collect per-PR changelog entries and
+assemble them at release time.
+
+```shell
+# Every contributor runs this as part of their PR:
+changie new
+
+# At release time, consolidate all unreleased entries into CHANGELOG.md:
+changie batch <version>   # e.g. changie batch 2.0.0
+changie merge             # appends the batched section to CHANGELOG.md
+git add .changes CHANGELOG.md
+git commit -m "chore: release notes for v<version>"
+```
 
 ## Bump version
 
-1. Open a branch for the release: `git checkout -b releases/2.0.0`
-2. Update [`CHANGELOG.md`](CHANGELOG.md) with the release notes.
-3. Bump the version using [`bump-my-version`](https://github.com/callowayproject/bump-my-version):
-    - Dry run: `bump-my-version bump --dry-run --verbose --new-version <desired-version> <part>`
-    - Apply: `bump-my-version bump --no-tag --new-version <desired-version> <part>`
-4. Check the diff with `git diff`.
-5. Stage and commit: `git commit -m "Release dbt-mariadb v<desired-version>"`.
-6. Push and merge the branch.
+```shell
+git checkout -b releases/<version>
+bump-my-version bump --dry-run --verbose --new-version <version> <part>
+bump-my-version bump --no-tag --new-version <version> <part>
+git diff
+git commit -am "Release dbt-mariadb v<version>"
+git push -u origin releases/<version>
+```
 
-## Distribute
+Merge the release branch into `main` via PR.
 
-Build and publish:
+## Build & publish
 
 ```shell
 python -m pip install --upgrade build twine
 python -m build
-# Optional smoke test against Test PyPI first
-twine upload -r testpypi dist/*
-# Real publish
+twine check dist/*
+twine upload -r testpypi dist/*      # optional smoke test
 twine upload dist/*
 ```
 
-Alternatively, pin to a git tag from downstream projects if you are not publishing to PyPI.
+Or pin downstream projects to the resulting git tag if you are not publishing
+to PyPI.
 
 ## GitHub release
 
-1. Create an annotated tag: `git tag -a v<version> -m "dbt-mariadb v<version>"` and push the tag.
-2. On GitHub, click _Create a new release_, select the tag, set the title to `dbt-mariadb v<version>`, and paste the changelog entry into the description.
-3. Tick "This is a pre-release" for `aN`, `bN`, or `rcN` versions.
+```shell
+git tag -a v<version> -m "dbt-mariadb v<version>"
+git push origin v<version>
+```
+
+Then create a new release on GitHub pointing at the tag. Paste the changie-
+generated section from `CHANGELOG.md` into the description. Tick
+"This is a pre-release" for `aN` / `bN` / `rcN` versions.
