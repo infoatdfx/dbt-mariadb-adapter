@@ -35,7 +35,9 @@
 
   {% if not target_relation_exists %}
 
-      {% set build_sql = build_snapshot_table(strategy, model['compiled_sql']) %}
+      {#- `compiled_sql` was removed in dbt 1.8+; `compiled_code` is the portable key. -#}
+      {% set compiled = model.get('compiled_code') or model.get('compiled_sql') %}
+      {% set build_sql = build_snapshot_table(strategy, compiled) %}
       {% set final_sql = create_table_as(False, target_relation, build_sql) %}
 
       {% call statement('main') %}

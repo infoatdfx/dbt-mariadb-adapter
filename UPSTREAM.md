@@ -35,3 +35,10 @@ The first release of this fork is tagged `v2.0.0`. That bump is intentional and 
 ## Deferred items
 
 - **Driver swap to `mariadb` (PyPI) package — deferred.** Fase 4 of the fork plan evaluated swapping `mysql-connector-python` for the official [`mariadb`](https://pypi.org/project/mariadb/) Python connector. The driver is MariaDB-native and gets actively tested against 11.x, but it is not pure Python: it requires `libmariadb-dev` (or `mariadb-connector-c` via Homebrew) as a system dependency on every developer machine, CI runner, and container image. `mysql-connector-python` (pinned to `>=9.0.0`) is pure Python, speaks MariaDB's wire protocol reliably, and keeps the install surface simple. We are keeping `mysql-connector-python` for the v2.0.0 release and revisiting the driver swap once the system-library story is acceptable across our deploy targets. When reopened, the scope is documented in the plan's Fase 4.
+- **Snapshot configs introduced in dbt 1.9 — partially deferred.** We fixed the `compiled_sql` → `compiled_code` deprecation and wired up the base-test classes under `tests/functional/adapter/test_snapshots.py`, but three configs still need materialization-level work and are currently `pytest.mark.skip`ped:
+  1. `snapshot_meta_column_names` — rename `dbt_valid_from` / `dbt_valid_to` / `dbt_scd_id` / `dbt_updated_at` / `dbt_is_deleted`. Our merge SQL hard-codes the names.
+  2. `dbt_valid_to_current` — emit a concrete sentinel (e.g. `9999-12-31`) instead of `NULL` for open rows.
+  3. Multi-column `unique_key` — `snapshot_staging_table` renders `strategy.unique_key` as a single SQL expression; a list currently stringifies badly.
+  4. `hard_deletes: new_record` — insert a tombstone row with `dbt_is_deleted = true`.
+
+  None of these affect the happy-path (single unique_key, timestamp or check strategy, no hard-delete handling) which is what the majority of dbt-mysql users rely on today.
