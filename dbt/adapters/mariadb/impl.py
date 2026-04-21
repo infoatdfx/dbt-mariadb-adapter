@@ -1,11 +1,17 @@
 from concurrent.futures import Future
 from dataclasses import asdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Tuple
 
 import agate
 
 from dbt.adapters.base import BaseRelation
 from dbt.adapters.base.impl import ConstraintSupport, catch_as_completed
+from dbt.adapters.capability import (
+    Capability,
+    CapabilityDict,
+    CapabilitySupport,
+    Support,
+)
 from dbt.adapters.events.logging import AdapterLogger
 from dbt.adapters.mariadb import (
     MariaDBColumn,
@@ -39,6 +45,27 @@ class MariaDBAdapter(SQLAdapter):
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
     }
 
+    # dbt-core checks these to decide whether to use fast-path metadata APIs
+    # and to render the right warnings. Mirror the dbt-postgres declaration
+    # where it makes sense; MariaDB has no materialized views so we say so
+    # explicitly instead of leaving the capability undeclared.
+    _capabilities: CapabilityDict = CapabilityDict(
+        {
+            Capability.SchemaMetadataByRelations: CapabilitySupport(
+                support=Support.Full
+            ),
+            Capability.TableLastModifiedMetadata: CapabilitySupport(
+                support=Support.Full
+            ),
+            Capability.MicrobatchConcurrency: CapabilitySupport(
+                support=Support.NotImplemented
+            ),
+        }
+    )
+
+    # Allow dbt-core to batch catalog lookups via `get_catalog_by_relations`.
+    CATALOG_BY_RELATION_SUPPORT: bool = True
+
     @classmethod
     def date_function(cls):
         return "current_date()"
@@ -50,6 +77,23 @@ class MariaDBAdapter(SQLAdapter):
     @classmethod
     def quote(cls, identifier: str) -> str:
         return "`{}`".format(identifier)
+
+    def valid_incremental_strategies(self) -> List[str]:
+        """Incremental strategies this adapter supports out of the box.
+
+        - `append`: plain INSERT … SELECT (no unique_key dedup)
+        - `delete+insert`: DELETE … WHERE unique_key IN (new) then INSERT
+        - `merge`: native MERGE is not available on MariaDB; we emulate via
+          INSERT … ON DUPLICATE KEY UPDATE, which requires a primary/unique key.
+
+        `microbatch` is intentionally absent — see the explicit rejection in
+        the materialization macros.
+        """
+        return ["append", "delete+insert", "merge"]
+
+    @staticmethod
+    def valid_snapshot_strategies() -> FrozenSet[str]:
+        return frozenset(["timestamp", "check"])
 
     def list_relations_without_caching(  # type: ignore[override]
         self, schema_relation: MariaDBRelation  # type: ignore[override]

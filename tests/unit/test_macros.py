@@ -132,6 +132,20 @@ def test_sample_profile_parses():
     assert dev["type"] == "mariadb"
 
 
+def test_unsupported_materializations_raise_clear_errors(all_sql):
+    # The stubs live in macros/materializations/unsupported.sql and must
+    # raise a compiler error explaining the alternative.
+    for name in ("materialized_view", "dynamic_table"):
+        pattern = (
+            r"{%\s*materialization\s+" + name + r"\s*,\s*adapter='mariadb'\s*%}"
+            r".*?raise_compiler_error.*?"
+            r"{%\s*endmaterialization\s*%}"
+        )
+        assert re.search(pattern, all_sql, re.DOTALL), (
+            f"expected rejection stub for materialization {name}"
+        )
+
+
 def test_dbt_project_yml_declares_macros():
     project = Path(mariadb_include.PACKAGE_PATH) / "dbt_project.yml"
     data = yaml.safe_load(project.read_text())

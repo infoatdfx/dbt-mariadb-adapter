@@ -38,6 +38,35 @@ def test_constraint_support_matrix():
     assert support[ConstraintType.foreign_key] == ConstraintSupport.NOT_SUPPORTED
 
 
+def test_capabilities_declared():
+    from dbt.adapters.capability import Capability, Support
+
+    caps = MariaDBAdapter._capabilities
+    assert caps[Capability.SchemaMetadataByRelations].support == Support.Full
+    assert caps[Capability.TableLastModifiedMetadata].support == Support.Full
+    assert caps[Capability.MicrobatchConcurrency].support == Support.NotImplemented
+
+
+def test_catalog_by_relation_support_enabled():
+    assert MariaDBAdapter.CATALOG_BY_RELATION_SUPPORT is True
+
+
+def test_valid_incremental_strategies():
+    adapter = _adapter()
+    strategies = adapter.valid_incremental_strategies()
+    assert "append" in strategies
+    assert "delete+insert" in strategies
+    assert "merge" in strategies
+    # microbatch deliberately absent — surfaced via capability declaration
+    assert "microbatch" not in strategies
+
+
+def test_valid_snapshot_strategies():
+    strategies = MariaDBAdapter.valid_snapshot_strategies()
+    assert "timestamp" in strategies
+    assert "check" in strategies
+
+
 def test_timestamp_add_sql_default():
     adapter = _adapter()
     sql = adapter.timestamp_add_sql("now()")
