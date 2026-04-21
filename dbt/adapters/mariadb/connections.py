@@ -1,18 +1,21 @@
 from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Optional, Union
 
 import mysql.connector
 import mysql.connector.constants
 
-import dbt.exceptions
+from dbt.adapters.contracts.connection import (
+    AdapterResponse,
+    Connection,
+    Credentials,
+)
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.exceptions.connection import FailedToConnectError
 from dbt.adapters.sql import SQLConnectionManager
-from dbt.contracts.connection import AdapterResponse
-from dbt.contracts.connection import Connection
-from dbt.contracts.connection import Credentials
-from dbt.events import AdapterLogger
-from dataclasses import dataclass
-from typing import Optional, Union
+from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
 
-logger = AdapterLogger("mysql")
+logger = AdapterLogger("mariadb")
 
 
 @dataclass(init=False)
@@ -41,9 +44,9 @@ class MariaDBCredentials(Credentials):
             self.database = None
 
     def __post_init__(self):
-        # Database and schema are treated as the same thing
+        # dbt "database" and MariaDB "schema" are the same thing.
         if self.database is not None and self.database != self.schema:
-            raise dbt.exceptions.DbtRuntimeError(
+            raise DbtRuntimeError(
                 f"    schema: {self.schema} \n"
                 f"    database: {self.database} \n"
                 f"On MariaDB, database must be omitted"
@@ -59,9 +62,7 @@ class MariaDBCredentials(Credentials):
         return self.schema
 
     def _connection_keys(self):
-        """
-        Returns an iterator of keys to pretty-print in 'dbt debug'
-        """
+        """Keys to display in `dbt debug`."""
         return (
             "server",
             "unix_socket",
@@ -115,20 +116,19 @@ class MariaDBConnectionManager(SQLConnectionManager):
                     "Trying again with `database` included."
                 )
 
-                # Try again with the database included
                 kwargs["database"] = credentials.schema
 
                 connection.handle = mysql.connector.connect(**kwargs)
                 connection.state = "open"
             except mysql.connector.Error as e:
                 logger.debug(
-                    "Got an error when attempting to open a MariaDB " "connection: '{}'".format(e)
+                    "Got an error when attempting to open a MariaDB connection: '{}'".format(e)
                 )
 
                 connection.handle = None
                 connection.state = "fail"
 
-                raise dbt.exceptions.FailedToConnectError(str(e))
+                raise FailedToConnectError(str(e))
 
         return connection
 
@@ -153,19 +153,18 @@ class MariaDBConnectionManager(SQLConnectionManager):
                 logger.debug("Failed to release connection!")
                 pass
 
-            raise dbt.exceptions.DbtDatabaseError(str(e).strip()) from e
+            raise DbtDatabaseError(str(e).strip()) from e
 
         except Exception as e:
             logger.debug("Error running SQL: {}", sql)
             logger.debug("Rolling back transaction.")
             self.rollback_if_open()
-            if isinstance(e, dbt.exceptions.DbtRuntimeError):
-                # during a sql query, an internal to dbt exception was raised.
-                # this sounds a lot like a signal handler and probably has
-                # useful information, so raise it without modification.
+            if isinstance(e, DbtRuntimeError):
+                # During a sql query, an internal dbt exception was raised.
+                # It likely carries useful diagnostic info — re-raise as-is.
                 raise
 
-            raise dbt.exceptions.DbtRuntimeError(e) from e
+            raise DbtRuntimeError(str(e)) from e
 
     @classmethod
     def get_response(cls, cursor) -> AdapterResponse:
@@ -175,9 +174,8 @@ class MariaDBConnectionManager(SQLConnectionManager):
         if cursor is not None and cursor.rowcount is not None:
             num_rows = cursor.rowcount
 
-        # There's no real way to get the status from
-        # the mysql-connector-python driver.
-        # So just return the default value.
+        # mysql-connector-python does not expose a meaningful status code for
+        # successful statements, so we return a synthetic one.
         return AdapterResponse(
             _message="{} {}".format(code, num_rows), rows_affected=num_rows, code=code
         )

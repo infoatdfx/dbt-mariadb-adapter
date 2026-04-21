@@ -1,25 +1,24 @@
 from concurrent.futures import Future
 from dataclasses import asdict
-from typing import Optional, List, Dict, Any, Iterable, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
 import agate
 
-import dbt
-import dbt.exceptions
-
-from dbt.adapters.base.impl import catch_as_completed
-from dbt.adapters.sql import SQLAdapter
-from dbt.adapters.mariadb import MariaDBConnectionManager
-from dbt.adapters.mariadb import MariaDBRelation
-from dbt.adapters.mariadb import MariaDBColumn
 from dbt.adapters.base import BaseRelation
-from dbt.contracts.graph.nodes import ConstraintType
-from dbt.adapters.base.impl import ConstraintSupport
-from dbt.contracts.graph.manifest import Manifest
-from dbt.clients.agate_helper import DEFAULT_TYPE_TESTER
-from dbt.events import AdapterLogger
-from dbt.utils import executor
+from dbt.adapters.base.impl import ConstraintSupport, catch_as_completed
+from dbt.adapters.events.logging import AdapterLogger
+from dbt.adapters.mariadb import (
+    MariaDBColumn,
+    MariaDBConnectionManager,
+    MariaDBRelation,
+)
+from dbt.adapters.sql import SQLAdapter
+from dbt_common.clients.agate_helper import DEFAULT_TYPE_TESTER
+from dbt_common.contracts.constraints import ConstraintType
+from dbt_common.exceptions import CompilationError, DbtRuntimeError
+from dbt_common.utils.executor import executor
 
-logger = AdapterLogger("mysql")
+logger = AdapterLogger("mariadb")
 
 LIST_SCHEMAS_MACRO_NAME = "list_schemas"
 LIST_RELATIONS_MACRO_NAME = "list_relations_without_caching"
@@ -35,11 +34,8 @@ class MariaDBAdapter(SQLAdapter):
         ConstraintType.not_null: ConstraintSupport.ENFORCED,
         ConstraintType.unique: ConstraintSupport.ENFORCED,
         ConstraintType.primary_key: ConstraintSupport.ENFORCED,
-        # While Foreign Keys are indeed supported, they're not supported in
-        # CREATE TABLE AS SELECT statements, which is what DBT uses.
-        #
-        # It is possible to use a `post-hook` to add a foreign key after the
-        # table is created.
+        # Foreign keys are supported but not in CREATE TABLE AS SELECT, which is
+        # what dbt uses. Users can still add them via a post-hook.
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
     }
 
@@ -61,7 +57,7 @@ class MariaDBAdapter(SQLAdapter):
         kwargs = {"schema_relation": schema_relation}
         try:
             results = self.execute_macro(LIST_RELATIONS_MACRO_NAME, kwargs=kwargs)
-        except dbt.exceptions.DbtRuntimeError as e:
+        except DbtRuntimeError as e:
             errmsg = getattr(e, "msg", "")
             if f"MariaDB database '{schema_relation}' not found" in errmsg:
                 return []
@@ -73,13 +69,15 @@ class MariaDBAdapter(SQLAdapter):
         relations = []
         for row in results:
             if len(row) != 4:
-                raise dbt.exceptions.DbtRuntimeError(
+                raise DbtRuntimeError(
                     "Invalid value from "
                     f'"mariadb__list_relations_without_caching({kwargs})", '
                     f"got {len(row)} values, expected 4"
                 )
             _, name, _schema, relation_type = row
-            relation = self.Relation.create(schema=_schema, identifier=name, type=relation_type)
+            relation = self.Relation.create(
+                schema=_schema, identifier=name, type=relation_type
+            )
             relations.append(relation)
 
         return relations
@@ -88,11 +86,12 @@ class MariaDBAdapter(SQLAdapter):
         rows: List[agate.Row] = super().get_columns_in_relation(relation)
         return self.parse_show_columns(relation, rows)
 
-    def _get_columns_for_catalog(self, relation: MariaDBRelation) -> Iterable[Dict[str, Any]]:
+    def _get_columns_for_catalog(
+        self, relation: MariaDBRelation
+    ) -> Iterable[Dict[str, Any]]:
         columns = self.get_columns_in_relation(relation)
 
         for column in columns:
-            # convert MariaDBColumns into catalog dicts
             as_dict = asdict(column)
             as_dict["column_name"] = as_dict.pop("column", None)
             as_dict["column_type"] = as_dict.pop("dtype")
@@ -125,12 +124,12 @@ class MariaDBAdapter(SQLAdapter):
             for idx, column in enumerate(raw_rows)
         ]
 
-    def get_catalog(self, manifest: Manifest) -> Tuple[agate.Table, List[Exception]]:
+    def get_catalog(self, manifest) -> Tuple[agate.Table, List[Exception]]:
         schema_map = self._get_catalog_schemas(manifest)
 
         if len(schema_map) > 1:
-            raise dbt.exceptions.CompilationError(
-                f"Expected only one database in get_catalog, found " f"{list(schema_map)}"
+            raise CompilationError(
+                f"Expected only one database in get_catalog, found {list(schema_map)}"
             )
 
         with executor(self.config) as tpe:
@@ -157,8 +156,8 @@ class MariaDBAdapter(SQLAdapter):
         manifest,
     ) -> agate.Table:
         if len(schemas) != 1:
-            raise dbt.exceptions.CompilationError(
-                f"Expected only one schema in mariadb _get_one_catalog, found " f"{schemas}"
+            raise CompilationError(
+                f"Expected only one schema in mariadb _get_one_catalog, found {schemas}"
             )
 
         database = information_schema.database
@@ -171,10 +170,11 @@ class MariaDBAdapter(SQLAdapter):
         return agate.Table.from_object(columns, column_types=DEFAULT_TYPE_TESTER)
 
     def check_schema_exists(self, database, schema):
-        results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database})
+        results = self.execute_macro(
+            LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database}
+        )
 
-        exists = True if schema in [row[0] for row in results] else False
-        return exists
+        return schema in [row[0] for row in results]
 
     # Methods used in adapter tests
     def update_column_sql(
@@ -189,25 +189,23 @@ class MariaDBAdapter(SQLAdapter):
             clause += f" where {where_clause}"
         return clause
 
-    def timestamp_add_sql(self, add_to: str, number: int = 1, interval: str = "hour") -> str:
-        # for backwards compatibility, we're compelled to set some sort of
-        # default. A lot of searching has lead me to believe that the
-        # '+ interval' syntax used in postgres/redshift is relatively common
-        # and might even be the SQL standard's intention.
+    def timestamp_add_sql(
+        self, add_to: str, number: int = 1, interval: str = "hour"
+    ) -> str:
         return f"date_add({add_to}, interval {number} {interval})"
 
     def string_add_sql(
         self,
         add_to: str,
         value: str,
-        location="append",
+        location: str = "append",
     ) -> str:
         if location == "append":
             return f"concat({add_to}, '{value}')"
         elif location == "prepend":
             return f"concat({value}, '{add_to}')"
         else:
-            raise dbt.exceptions.DbtRuntimeError(
+            raise DbtRuntimeError(
                 f'Got an unexpected location value of "{location}"'
             )
 
@@ -218,7 +216,6 @@ class MariaDBAdapter(SQLAdapter):
         column_names: Optional[List[str]] = None,
         except_operator: str = "",  # Required to match BaseRelation.get_rows_different_sql()
     ) -> str:
-        # This method only really exists for test reasons
         names: List[str]
         if column_names is None:
             columns = self.get_columns_in_relation(relation_a)
@@ -230,10 +227,12 @@ class MariaDBAdapter(SQLAdapter):
         alias_b = "B"
         columns_csv_a = ", ".join([f"{alias_a}.{name}" for name in names])
         columns_csv_b = ", ".join([f"{alias_b}.{name}" for name in names])
-        join_condition = " AND ".join([f"{alias_a}.{name} = {alias_b}.{name}" for name in names])
+        join_condition = " AND ".join(
+            [f"{alias_a}.{name} = {alias_b}.{name}" for name in names]
+        )
         first_column = names[0]
 
-        # MariaDB doesn't have an EXCEPT or MINUS operator, so we need to simulate it
+        # MariaDB has no EXCEPT / MINUS; emulate via left-outer join symmetric difference.
         COLUMNS_EQUAL_SQL = """
         SELECT
             row_count_diff.difference as row_count_difference,
@@ -271,7 +270,7 @@ class MariaDBAdapter(SQLAdapter):
             ) as diff_count ON row_count_diff.id = diff_count.id
         """.strip()
 
-        sql = COLUMNS_EQUAL_SQL.format(
+        return COLUMNS_EQUAL_SQL.format(
             alias_a=alias_a,
             alias_b=alias_b,
             first_column=first_column,
@@ -281,5 +280,3 @@ class MariaDBAdapter(SQLAdapter):
             relation_a=str(relation_a),
             relation_b=str(relation_b),
         )
-
-        return sql
