@@ -58,7 +58,7 @@ class MariaDBAdapter(SQLAdapter):
                 support=Support.Full
             ),
             Capability.MicrobatchConcurrency: CapabilitySupport(
-                support=Support.NotImplemented
+                support=Support.Full
             ),
         }
     )
@@ -85,11 +85,9 @@ class MariaDBAdapter(SQLAdapter):
         - `delete+insert`: DELETE … WHERE unique_key IN (new) then INSERT
         - `merge`: native MERGE is not available on MariaDB; we emulate via
           INSERT … ON DUPLICATE KEY UPDATE, which requires a primary/unique key.
-
-        `microbatch` is intentionally absent — see the explicit rejection in
-        the materialization macros.
+        - `microbatch`: DELETE + INSERT scoped to the current event_time window.
         """
-        return ["append", "delete+insert", "merge"]
+        return ["append", "delete+insert", "merge", "microbatch"]
 
     @staticmethod
     def valid_snapshot_strategies() -> FrozenSet[str]:

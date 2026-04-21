@@ -56,6 +56,11 @@ def macro_names(all_sql) -> set[str]:
         "mariadb__generate_database_name",
         "mariadb__get_phony_data_for_type",
         "mariadb__get_empty_schema_sql",
+        "mariadb__get_incremental_append_sql",
+        "mariadb__get_incremental_delete_insert_sql",
+        "mariadb__get_incremental_merge_sql",
+        "mariadb__get_incremental_microbatch_sql",
+        "mariadb__get_incremental_default_sql",
     ],
 )
 def test_macro_is_defined(macro, macro_names):

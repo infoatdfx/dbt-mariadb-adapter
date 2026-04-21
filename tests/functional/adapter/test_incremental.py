@@ -12,6 +12,9 @@ import pytest
 from dbt.tests.adapter.incremental.test_incremental_merge_exclude_columns import (
     BaseMergeExcludeColumns,
 )
+from dbt.tests.adapter.incremental.test_incremental_microbatch import (
+    BaseMicrobatch,
+)
 from dbt.tests.adapter.incremental.test_incremental_on_schema_change import (
     BaseIncrementalOnSchemaChange,
 )
@@ -38,4 +41,8 @@ class TestIncrementalPredicatesMariaDB(BaseIncrementalPredicates):
 
 
 class TestMergeExcludeColumnsMariaDB(BaseMergeExcludeColumns):
+    pass
+
+
+class TestMicrobatchMariaDB(BaseMicrobatch):
     pass

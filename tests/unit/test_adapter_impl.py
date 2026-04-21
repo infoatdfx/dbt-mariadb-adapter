@@ -44,7 +44,7 @@ def test_capabilities_declared():
     caps = MariaDBAdapter._capabilities
     assert caps[Capability.SchemaMetadataByRelations].support == Support.Full
     assert caps[Capability.TableLastModifiedMetadata].support == Support.Full
-    assert caps[Capability.MicrobatchConcurrency].support == Support.NotImplemented
+    assert caps[Capability.MicrobatchConcurrency].support == Support.Full
 
 
 def test_catalog_by_relation_support_enabled():
@@ -54,11 +54,7 @@ def test_catalog_by_relation_support_enabled():
 def test_valid_incremental_strategies():
     adapter = _adapter()
     strategies = adapter.valid_incremental_strategies()
-    assert "append" in strategies
-    assert "delete+insert" in strategies
-    assert "merge" in strategies
-    # microbatch deliberately absent — surfaced via capability declaration
-    assert "microbatch" not in strategies
+    assert set(strategies) == {"append", "delete+insert", "merge", "microbatch"}
 
 
 def test_valid_snapshot_strategies():
