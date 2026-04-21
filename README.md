@@ -70,6 +70,17 @@ Fully-qualified relation names in MariaDB have two parts (`database.table`), not
 
 See [tests/README.md](tests/README.md) for details on running the unit and integration tests. A `docker-compose.yml` is provided to spin up a local MariaDB 11.4 instance.
 
+## Migrating from upstream `dbt-mysql`
+
+If you were running `dbeatty10/dbt-mysql` against MariaDB, the migration to `dbt-mariadb` v2.0 is:
+
+1. **Python & dbt-core.** Upgrade your environment to Python 3.13 and dbt-core 1.11.
+2. **Package swap.** Uninstall `dbt-mysql` and install `dbt-mariadb` (PyPI or a git-pinned dependency).
+3. **Profile `type`.** Replace `type: mysql` / `type: mysql5` with `type: mariadb` in `profiles.yml`. If you had a mix, consolidate onto a single MariaDB target.
+4. **Collation.** Replace any `utf8mb4_0900_ai_ci` collation with a MariaDB-native one, e.g. `utf8mb4_uca1400_ai_ci`.
+5. **MariaDB upgrade.** Upgrade your server to 11.4 LTS if you're on 10.x. 10.x branches are EOL and no longer tested.
+6. **Test.** Run `dbt debug` and your `dbt build` against a non-prod schema before flipping production over.
+
 ## Credits
 
 Forked from [`dbeatty10/dbt-mysql`](https://github.com/dbeatty10/dbt-mysql), which itself borrows from [`dbt-spark`](https://github.com/dbt-labs/dbt-spark) and [`dbt-sqlite`](https://github.com/codeforkjeff/dbt-sqlite).

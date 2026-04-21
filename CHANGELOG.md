@@ -1,98 +1,60 @@
-## Unreleased (TBD)
+# Changelog
 
-### Features
+## dbt-mariadb 2.0.0 (unreleased)
+
+This is the first release of `dbt-mariadb` as a hard fork of
+[`dbeatty10/dbt-mysql`](https://github.com/dbeatty10/dbt-mysql) at commit
+`09e076f7`. See [UPSTREAM.md](UPSTREAM.md) for fork provenance.
+
+### Breaking changes
+
+- Dropped all MySQL support. The `mysql` and `mysql5` adapters are gone. This fork is MariaDB-only.
+- Minimum MariaDB version is now **11.4 LTS**. Older (EOL) 10.x versions are not supported.
+- Minimum dbt-core is **1.11**. Earlier versions are not supported.
+- Minimum Python is **3.13**.
+- Package renamed from `dbt-mysql` to `dbt-mariadb`.
+- Default MySQL collation `utf8mb4_0900_ai_ci` is no longer a valid profile value — use a MariaDB-native collation such as `utf8mb4_uca1400_ai_ci`.
+
+### Added
+
+- MariaDB 11.x-specific functional tests: JSON columns, fractional-second timestamps, SEQUENCE objects, 12k-row incremental merges, `information_schema.COLUMNS` shape, schema lifecycle.
+- 70+ database-free unit tests covering credentials, connection kwargs construction and retry flow, adapter SQL primitives, relation/column policies, and macro structure.
+- GitHub Actions CI: lint + unit on every push/PR; integration against MariaDB 11.4 (blocking) and 11.8 (best effort) with weekly scheduled runs.
+- Dependabot for weekly `pip` and `github-actions` updates, grouped by family.
+
+### Changed
+
+- Migrated to the `dbt-adapters` 1.22 architecture (post-1.8 decoupling). All imports now resolve against `dbt.adapters.*` and `dbt_common.*`.
+- Repository layout: `dbt/adapters/mysql*` and `dbt/include/mysql*` removed.
+
+### Deferred
+
+- Driver swap from `mysql-connector-python` to the official `mariadb` PyPI package. Motivation and conditions documented in [UPSTREAM.md](UPSTREAM.md).
+
+---
+
+## Historical upstream changelog (dbt-mysql 0.x – 1.x)
+
+The entries below are preserved for provenance. They describe upstream `dbt-mysql` releases before the fork and all issue/PR links point at the upstream repository.
+
+### Upstream unreleased
+
 - Migrate CircleCI to GitHub Actions ([#120](https://github.com/dbeatty10/dbt-mysql/issues/120))
 - Support dbt v1.4 ([#146](https://github.com/dbeatty10/dbt-mysql/pull/146))
 - Support dbt v1.5 ([#145](https://github.com/dbeatty10/dbt-mysql/issues/145))
 - Support connecting via UNIX sockets ([#164](https://github.com/dbeatty10/dbt-mysql/issues/164))
 - Support Black & MyPy pre-commit hooks ([#138](https://github.com/dbeatty10/dbt-mysql/issues/138))
-
-### Fixes
 - Fix incremental composite keys ([#144](https://github.com/dbeatty10/dbt-mysql/issues/144))
 - Fix UnicodeDecodeErorr on setup.py ([#160](https://github.com/dbeatty10/dbt-mysql/issues/160))
 
-### Contributors
-- [@lpezet](https://github.com/lpezet) ([#146](https://github.com/dbeatty10/dbt-mysql/pull/146))
-- [@moszutij](https://github.com/moszutij) ([#146](https://github.com/dbeatty10/dbt-mysql/pull/146), [#144](https://github.com/dbeatty10/dbt-mysql/issues/144))
-- [@wesen](https://github.com/wesen) ([#146](https://github.com/dbeatty10/dbt-mysql/pull/146))
-- [@mwallace582](https://github.com/mwallace582) ([#162](https://github.com/dbeatty10/dbt-mysql/pull/162), [#163](https://github.com/dbeatty10/dbt-mysql/pull/163), [#164](https://github.com/dbeatty10/dbt-mysql/issues/164), [#138](https://github.com/dbeatty10/dbt-mysql/issues/138))
-- [@sagunn-echo](https://github.com/sagunn-echo) ([#160](https://github.com/dbeatty10/dbt-mysql/issues/160))
+### Upstream dbt-mysql 1.1.0 (Feb 5, 2023)
 
-
-## dbt-mysql 1.1.0 (Feb 5, 2023)
-
-### Features
 - Support dbt v1.1 ([#100](https://github.com/dbeatty10/dbt-mysql/pull/100))
-- More clear exception for invalid `database` config ([#110](https://github.com/dbeatty10/dbt-mysql/issues/110), [#111](https://github.com/dbeatty10/dbt-mysql/pull/111))
+- Clearer exception for invalid `database` config ([#110](https://github.com/dbeatty10/dbt-mysql/issues/110), [#111](https://github.com/dbeatty10/dbt-mysql/pull/111))
+- Document supported Python versions ([#115](https://github.com/dbeatty10/dbt-mysql/issues/115), [#116](https://github.com/dbeatty10/dbt-mysql/pull/116))
+- docker-compose for local testing ([#104](https://github.com/dbeatty10/dbt-mysql/pull/104))
+- New adapter testing framework ([#109](https://github.com/dbeatty10/dbt-mysql/pull/109))
 
-### Documentation
-- Include supported Python versions ([#115](https://github.com/dbeatty10/dbt-mysql/issues/115), [#116](https://github.com/dbeatty10/dbt-mysql/pull/116))
+### Upstream dbt-mysql 1.0.0 and earlier
 
-### Under the hood
-- docker compose MySQL and MariaDB database services for local testing ([#9](https://github.com/dbeatty10/dbt-mysql/issues/9), [#104](https://github.com/dbeatty10/dbt-mysql/pull/104))
-- New adapter testing framework ([#105](https://github.com/dbeatty10/dbt-mysql/issues/105), [#109](https://github.com/dbeatty10/dbt-mysql/pull/109))
-
-### Contributors
-- [@lyderichti59](https://github.com/lyderichti59) ([#111](https://github.com/dbeatty10/dbt-mysql/pull/111))
-- [@the-timoye](https://github.com/the-timoye) ([#116](https://github.com/dbeatty10/dbt-mysql/pull/116))
-- [@shiyuhang0](https://github.com/shiyuhang0) ([#109](https://github.com/dbeatty10/dbt-mysql/pull/109))
-
-## dbt-mysql 1.0.0 (March 13, 2022)
-- Support dbt v1.0 ([#90](https://github.com/dbeatty10/dbt-mysql/pull/90))
-
-## dbt-mysql 0.21.1 (March 13, 2022)
-- Support dbt v0.21.1 ([#89](https://github.com/dbeatty10/dbt-mysql/pull/89))
-
-## dbt-mysql 0.20.2 (March 13, 2022)
-- Support dbt v0.20.2 ([#88](https://github.com/dbeatty10/dbt-mysql/pull/88))
-
-## dbt-mysql 0.20.1 (March 13, 2022)
-- Remove integration tests and docs for MySQL 5.6 ([#74](https://github.com/dbeatty10/dbt-mysql/issues/74), [#86](https://github.com/dbeatty10/dbt-mysql/pull/86))
-- Support dbt v0.20.1 ([#87](https://github.com/dbeatty10/dbt-mysql/pull/87))
-
-## dbt-mysql 0.20.0 (March 13, 2022)
-- Support dbt v0.20.0 ([#83](https://github.com/dbeatty10/dbt-mysql/pull/83))
-- Report status as `SUCCESS` instead of `Unknown cursor state/status` ([#84](https://github.com/dbeatty10/dbt-mysql/pull/84))
-
-## dbt-mysql 0.19.2 (March 12, 2022)
-- Support dbt v0.19.2 ([#81](https://github.com/dbeatty10/dbt-mysql/pull/81))
-
-## dbt-mysql 0.19.1 (March 6, 2022)
-### Under the hood
-- Integration tests for MySQL 5.7 ([#70](https://github.com/dbeatty10/dbt-mysql/issues/70), [#71](https://github.com/dbeatty10/dbt-mysql/pull/71))
-- Integration tests for MariaDB 10.5 ([#72](https://github.com/dbeatty10/dbt-mysql/pull/72))
-- Support for MariaDB 10.5 ([#32](https://github.com/dbeatty10/dbt-mysql/issues/32), [#73](https://github.com/dbeatty10/dbt-mysql/pull/73))
-- Enable snapshot integration tests for MySQL 5.7 and MariaDB 10.5 ([#75](https://github.com/dbeatty10/dbt-mysql/issues/75), [#76](https://github.com/dbeatty10/dbt-mysql/pull/76))
-- Support dbt v0.19.1 ([#80](https://github.com/dbeatty10/dbt-mysql/pull/80))
-
-## dbt-mysql 0.19.0.1 (February 19, 2022)
-- Optional `ssl_disabled` property ([#67](https://github.com/dbeatty10/dbt-mysql/pull/67))
-
-## dbt-mysql 0.19.0.1rc1 (February 16, 2022)
-
-### Under the hood
-- Continuous integration using CircleCI ([#8](https://github.com/dbeatty10/dbt-mysql/issues/8), [#60](https://github.com/dbeatty10/dbt-mysql/pull/60))
-
-### Fixes
-- Execute incremental upsert queries separately ([#62](https://github.com/dbeatty10/dbt-mysql/issues/62), [#69](https://github.com/dbeatty10/dbt-mysql/pull/69))
-
-## dbt-mysql 0.19.0 (February 3, 2021)
-- Latest versions of dbt (0.19.0) and dbt-adapter-tests (4.0) ([#53](https://github.com/dbeatty10/dbt-mysql/pull/53))
-
-## dbt-mysql 0.19.0rc1 (January 3, 2021)
-
-- Manage MySQL connections via a self-contained DB API 2.0 compliant Python driver (instead of ODBC) ([#38](https://github.com/dbeatty10/dbt-mysql/pull/38))
-- Integration tests via (custom) dbt-adapter-tests ([#45](https://github.com/dbeatty10/dbt-mysql/pull/45))
-- Split into two separate adapters for MySQL 5.x and 8.x ([#46](https://github.com/dbeatty10/dbt-mysql/pull/46))
-
-## dbt-mysql 0.18.1 (December 6, 2020)
-
-## dbt-mysql 0.18.0 (December 6, 2020)
-
-### Under the hood
-- Support for MySQL 5.6, 5.7, and 8.0 ([#24](https://github.com/dbeatty10/dbt-mysql/pull/24))
-- Manage MySQL connections via ODBC ([#1](https://github.com/dbeatty10/dbt-mysql/pull/1))
-- Pass [dbt-adapter-tests](https://github.com/dbeatty10/dbt-adapter-tests) ([#3](https://github.com/dbeatty10/dbt-mysql/pull/3))
-- Apache 2.0 license and instructions for project contributors, README, and release instructions ([#2](https://github.com/dbeatty10/dbt-mysql/pull/2), [#12](https://github.com/dbeatty10/dbt-mysql/pull/12), [#17](https://github.com/dbeatty10/dbt-mysql/pull/17))
-- Add issue templates and CHANGELOG ([#18](https://github.com/dbeatty10/dbt-mysql/pull/18))
-- Support case-sensitive identifiers (schemas, tables/views, and columns) ([#26](https://github.com/dbeatty10/dbt-mysql/pull/26))
+Older upstream entries (0.18.0 through 1.0.0) covered initial ODBC support, the switch to a DB API 2.0 driver, the split into MySQL 5.x / 8.x adapters, and integration testing against MariaDB 10.5. They are not reproduced here; see the upstream repository's git history for details.
