@@ -34,6 +34,4 @@ The first release of this fork is tagged `v2.0.0`. That bump is intentional and 
 
 ## Deferred items
 
-Any items that were planned but postponed during the fork work (for example, swapping the driver to the official `mariadb` Python connector) are tracked here:
-
-- **Driver swap to `mariadb` (PyPI) package:** evaluated in Fase 4 of the fork plan. Status recorded once that phase runs.
+- **Driver swap to `mariadb` (PyPI) package — deferred.** Fase 4 of the fork plan evaluated swapping `mysql-connector-python` for the official [`mariadb`](https://pypi.org/project/mariadb/) Python connector. The driver is MariaDB-native and gets actively tested against 11.x, but it is not pure Python: it requires `libmariadb-dev` (or `mariadb-connector-c` via Homebrew) as a system dependency on every developer machine, CI runner, and container image. `mysql-connector-python` (pinned to `>=9.0.0`) is pure Python, speaks MariaDB's wire protocol reliably, and keeps the install surface simple. We are keeping `mysql-connector-python` for the v2.0.0 release and revisiting the driver swap once the system-library story is acceptable across our deploy targets. When reopened, the scope is documented in the plan's Fase 4.
