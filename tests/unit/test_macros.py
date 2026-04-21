@@ -62,6 +62,36 @@ def test_macro_is_defined(macro, macro_names):
     assert macro in macro_names, f"macro {macro} missing from package"
 
 
+@pytest.mark.parametrize(
+    "macro",
+    [
+        "mariadb__any_value",
+        "mariadb__bool_or",
+        "mariadb__cast_bool_to_text",
+        "mariadb__dateadd",
+        "mariadb__datediff",
+        "mariadb__date_trunc",
+        "mariadb__last_day",
+        "mariadb__listagg",
+        "mariadb__split_part",
+        "mariadb__safe_cast",
+        "mariadb__hash",
+        "mariadb__position",
+        "mariadb__right",
+        "mariadb__except",
+        "mariadb__intersect",
+        "mariadb__escape_single_quotes",
+        "mariadb__array_construct",
+        "mariadb__array_append",
+        "mariadb__array_concat",
+        "mariadb__generate_series",
+    ],
+)
+def test_utility_macro_is_defined(macro, macro_names):
+    """Every dbt.* utility dispatch point must resolve on this adapter."""
+    assert macro in macro_names, f"utility macro {macro} missing"
+
+
 def test_create_table_as_supports_contract_enforcement(all_sql):
     # Contract enforcement must go through get_table_columns_and_constraints
     assert "get_table_columns_and_constraints" in all_sql
