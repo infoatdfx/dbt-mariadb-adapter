@@ -1,6 +1,7 @@
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import mysql.connector
 import mysql.connector.constants
@@ -17,8 +18,10 @@ from dbt_common.exceptions import DbtDatabaseError, DbtRuntimeError
 
 logger = AdapterLogger("mariadb")
 
+DEFAULT_APPLICATION_NAME = "dbt"
 
-@dataclass(init=False)
+
+@dataclass
 class MariaDBCredentials(Credentials):
     server: str = ""
     unix_socket: Optional[str] = None
@@ -30,6 +33,9 @@ class MariaDBCredentials(Credentials):
     charset: Optional[str] = None
     ssl_disabled: Optional[bool] = None
     collation: Optional[str] = None
+    connect_timeout: int = 10
+    retries: int = 1
+    application_name: str = DEFAULT_APPLICATION_NAME
 
     _ALIASES = {
         "UID": "username",
@@ -38,13 +44,10 @@ class MariaDBCredentials(Credentials):
         "host": "server",
     }
 
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-            self.database = None
-
     def __post_init__(self):
-        # dbt "database" and MariaDB "schema" are the same thing.
+        # dbt "database" and MariaDB "schema" refer to the same thing. Accept
+        # database=None (most common) or database==schema; anything else is a
+        # configuration error we want to surface early.
         if self.database is not None and self.database != self.schema:
             raise DbtRuntimeError(
                 f"    schema: {self.schema} \n"
@@ -52,17 +55,19 @@ class MariaDBCredentials(Credentials):
                 f"On MariaDB, database must be omitted"
                 f" or have the same value as schema."
             )
+        # Normalise to None so downstream code can treat dbt-database as absent.
+        self.database = None
 
     @property
-    def type(self):
+    def type(self) -> str:
         return "mariadb"
 
     @property
-    def unique_field(self):
+    def unique_field(self) -> str:
         return self.schema
 
     def _connection_keys(self):
-        """Keys to display in `dbt debug`."""
+        """Keys displayed in `dbt debug`."""
         return (
             "server",
             "unix_socket",
@@ -70,6 +75,9 @@ class MariaDBCredentials(Credentials):
             "database",
             "schema",
             "user",
+            "connect_timeout",
+            "retries",
+            "application_name",
         )
 
 
@@ -77,70 +85,133 @@ class MariaDBConnectionManager(SQLConnectionManager):
     TYPE = "mariadb"
 
     @classmethod
-    def open(cls, connection):
+    def open(cls, connection: Connection) -> Connection:
         if connection.state == "open":
             logger.debug("Connection is already open, skipping open.")
             return connection
 
-        credentials = cls.get_credentials(connection.credentials)
-        kwargs = {}
+        credentials: MariaDBCredentials = cls.get_credentials(connection.credentials)
+        base_kwargs = cls._build_connect_kwargs(credentials)
 
-        kwargs["user"] = credentials.username
-        kwargs["passwd"] = credentials.password
-        kwargs["buffered"] = True
+        # Retry with exponential backoff. `retries == 1` (default) means a
+        # single attempt; `retries == 3` means up to 3 attempts.
+        attempts = max(credentials.retries, 1)
+        last_error: Optional[Exception] = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                connection.handle = mysql.connector.connect(**base_kwargs)
+                connection.state = "open"
+                return connection
+            except mysql.connector.Error as e:
+                last_error = e
+                logger.debug(
+                    "MariaDB connection attempt %d/%d without `database` failed: %s",
+                    attempt,
+                    attempts,
+                    e,
+                )
+
+                # Retry immediately with `database` included — this matches the
+                # upstream behaviour for MariaDB/MySQL where the user needs the
+                # schema to exist before pointing at it.
+                with_database = {**base_kwargs, "database": credentials.schema}
+                try:
+                    connection.handle = mysql.connector.connect(**with_database)
+                    connection.state = "open"
+                    return connection
+                except mysql.connector.Error as retry_err:
+                    last_error = retry_err
+                    logger.debug(
+                        "Retry with `database=%s` also failed on attempt %d/%d: %s",
+                        credentials.schema,
+                        attempt,
+                        attempts,
+                        retry_err,
+                    )
+
+            if attempt < attempts:
+                # Exponential backoff: 1, 2, 4, ... seconds (max 16).
+                sleep_for = min(2 ** (attempt - 1), 16)
+                logger.debug("Sleeping %d seconds before retry.", sleep_for)
+                time.sleep(sleep_for)
+
+        # All attempts exhausted.
+        connection.handle = None
+        connection.state = "fail"
+        raise FailedToConnectError(str(last_error))
+
+    @staticmethod
+    def _build_connect_kwargs(credentials: MariaDBCredentials) -> Dict[str, Any]:
+        kwargs: Dict[str, Any] = {
+            "user": credentials.username,
+            "passwd": credentials.password,
+            "buffered": True,
+            "connection_timeout": credentials.connect_timeout,
+        }
+        # mysql-connector-python exposes init-command, which MariaDB honours:
+        # we use it to tag sessions so they can be spotted in `SHOW PROCESSLIST`.
+        if credentials.application_name:
+            # Escape single quotes defensively even though this value comes
+            # from the profile, not end-user SQL.
+            safe_name = credentials.application_name.replace("'", "''")
+            kwargs["init_command"] = f"SET SESSION program_name = '{safe_name}'"
 
         if credentials.ssl_disabled:
             kwargs["ssl_disabled"] = credentials.ssl_disabled
-
         if credentials.server:
             kwargs["host"] = credentials.server
         elif credentials.unix_socket:
             kwargs["unix_socket"] = credentials.unix_socket
-
         if credentials.port:
             kwargs["port"] = credentials.port
-
         if credentials.charset:
             kwargs["charset"] = credentials.charset
-
         if credentials.collation:
             kwargs["collation"] = credentials.collation
-
-        try:
-            connection.handle = mysql.connector.connect(**kwargs)
-            connection.state = "open"
-        except mysql.connector.Error:
-            try:
-                logger.debug(
-                    "Failed connection without supplying the `database`. "
-                    "Trying again with `database` included."
-                )
-
-                kwargs["database"] = credentials.schema
-
-                connection.handle = mysql.connector.connect(**kwargs)
-                connection.state = "open"
-            except mysql.connector.Error as e:
-                logger.debug(
-                    "Got an error when attempting to open a MariaDB connection: '{}'".format(e)
-                )
-
-                connection.handle = None
-                connection.state = "fail"
-
-                raise FailedToConnectError(str(e))
-
-        return connection
+        return kwargs
 
     @classmethod
-    def get_credentials(cls, credentials):
+    def get_credentials(cls, credentials: MariaDBCredentials) -> MariaDBCredentials:
         return credentials
 
-    def cancel(self, connection: Connection):
-        connection.handle.close()
+    def cancel(self, connection: Connection) -> None:
+        """Terminate an in-flight query on the server, then close the handle.
+
+        Merely closing the client socket leaves the query running on the
+        MariaDB server until it completes — wasteful and confusing for users
+        who expect Ctrl-C to mean "stop now". We send `KILL QUERY <connection_id>`
+        via a short-lived auxiliary connection so we don't deadlock on the
+        handle we're trying to cancel.
+        """
+        handle = connection.handle
+        connection_id: Optional[int] = None
+        try:
+            connection_id = getattr(handle, "connection_id", None)
+        except Exception:  # pragma: no cover — defensive
+            connection_id = None
+
+        if connection_id is not None:
+            try:
+                creds: MariaDBCredentials = self.get_credentials(connection.credentials)
+                kill_kwargs = self._build_connect_kwargs(creds)
+                with mysql.connector.connect(**kill_kwargs) as killer:
+                    with killer.cursor() as cur:
+                        cur.execute(f"KILL QUERY {int(connection_id)}")
+                logger.debug("Sent KILL QUERY %s", connection_id)
+            except Exception as e:
+                # If the kill itself fails, fall through and still close the
+                # client-side handle — don't let cleanup raise.
+                logger.debug("KILL QUERY %s failed: %s", connection_id, e)
+
+        try:
+            if handle is not None:
+                handle.close()
+        except Exception as e:  # pragma: no cover
+            logger.debug("Closing MariaDB handle raised: %s", e)
 
     @contextmanager
-    def exception_handler(self, sql):
+    def exception_handler(self, sql: str):
         try:
             yield
 
@@ -160,8 +231,8 @@ class MariaDBConnectionManager(SQLConnectionManager):
             logger.debug("Rolling back transaction.")
             self.rollback_if_open()
             if isinstance(e, DbtRuntimeError):
-                # During a sql query, an internal dbt exception was raised.
-                # It likely carries useful diagnostic info — re-raise as-is.
+                # Preserve internal dbt exceptions untouched; they often carry
+                # diagnostic info the base handler would discard.
                 raise
 
             raise DbtRuntimeError(str(e)) from e
