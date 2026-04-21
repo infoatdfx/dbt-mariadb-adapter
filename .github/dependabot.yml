@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      dbt:
+        patterns:
+          - "dbt-*"
+      lint-and-test:
+        patterns:
+          - "black"
+          - "flake8"
+          - "mypy"
+          - "pytest*"
+          - "pre-commit*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - github-actions

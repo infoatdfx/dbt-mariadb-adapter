@@ -1,0 +1,91 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly run — catches regressions from dbt-adapters minor bumps.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functional:
+    name: "MariaDB ${{ matrix.mariadb-version }} — py${{ matrix.python-version }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
+        include:
+          # Primary target — failures block CI.
+          - mariadb-version: "11.4"
+            blocking: true
+          # Best-effort secondary.
+          - mariadb-version: "11.8"
+            blocking: false
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb-version }}
+        env:
+          MARIADB_ROOT_PASSWORD: dbt
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('setup.py', 'dev-requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . -r dev-requirements.txt
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 --silent 2>/dev/null; then
+              echo "MariaDB is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MariaDB failed to become ready." >&2
+          exit 1
+
+      - name: Functional tests
+        id: functional
+        continue-on-error: ${{ !matrix.blocking }}
+        env:
+          DBT_MARIADB_SERVER_NAME: 127.0.0.1
+          DBT_MARIADB_PORT: "3306"
+          DBT_MARIADB_USERNAME: root
+          DBT_MARIADB_PASSWORD: dbt
+        run: python -m pytest tests/functional -v --junitxml=pytest-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ matrix.mariadb-version }}-py${{ matrix.python-version }}
+          path: pytest-results.xml
+          if-no-files-found: ignore
