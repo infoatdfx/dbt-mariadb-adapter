@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import os
 import sys
-import re
 
-# require python 3.7 or newer
-if sys.version_info < (3, 7):
-    print("Error: dbt does not support this version of Python.")
-    print("Please upgrade to Python 3.7 or higher.")
+# require python 3.13 or newer
+if sys.version_info < (3, 13):
+    print("Error: dbt-mariadb does not support this version of Python.")
+    print("Please upgrade to Python 3.13 or higher.")
     sys.exit(1)
 
 
@@ -18,42 +17,26 @@ try:
 except ImportError:
     # the user has a downlevel version of setuptools.
     print("Error: dbt requires setuptools v40.1.0 or higher.")
-    print('Please upgrade setuptools with "pip install --upgrade setuptools" ' "and try again")
+    print('Please upgrade setuptools with "pip install --upgrade setuptools" and try again')
     sys.exit(1)
 
 
-# pull long description from README
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
-# get this package's version from dbt/adapters/<name>/__version__.py
-def _get_plugin_version_dict():
-    _version_path = os.path.join(this_directory, "dbt", "adapters", "mysql", "__version__.py")
-    _semver = r"""(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"""
-    _pre = r"""((?P<prekind>a|b|rc)(?P<pre>\d+))?"""
-    _nightly = r"""(\.(?P<nightly>[a-z0-9]+)?)?"""
-    _version_pattern = rf"""version\s*=\s*["']{_semver}{_pre}{_nightly}["']"""
-    with open(_version_path) as f:
-        match = re.search(_version_pattern, f.read().strip())
-        if match is None:
-            raise ValueError(f"invalid version at {_version_path}")
-        return match.groupdict()
+def _get_package_version():
+    version_path = os.path.join(this_directory, "dbt", "adapters", "mariadb", "__version__.py")
+    namespace: dict = {}
+    with open(version_path) as f:
+        exec(f.read(), namespace)
+    return namespace["version"]
 
 
-# require a compatible minor version (~=), prerelease if this is a prerelease
-def _get_dbt_core_version():
-    parts = _get_plugin_version_dict()
-    minor = "{major}.{minor}.0".format(**parts)
-    pre = parts["prekind"] + "1" if parts["prekind"] else ""
-    return f"{minor}{pre}"
-
-
-package_name = "dbt-mysql"
-package_version = "1.7.0a1"
-dbt_core_version = _get_dbt_core_version()
-description = """The MySQL adapter plugin for dbt"""
+package_name = "dbt-mariadb"
+package_version = _get_package_version()
+description = "A dbt adapter for MariaDB 11.4+"
 
 setup(
     name=package_name,
@@ -61,25 +44,23 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Doug Beatty",
-    author_email="doug.beatty@gmail.com",
-    url="https://github.com/dbeatty10/dbt-mysql",
+    url="https://github.com/infoatdfx/dbt-mariadb-adapter",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-core~={}".format(dbt_core_version),
-        "mysql-connector-python>=8.0.0",
+        "dbt-core>=1.11.0,<2.0.0",
+        "dbt-adapters>=1.22.0,<2.0.0",
+        "dbt-common>=1.37.0,<2.0.0",
+        "mysql-connector-python>=9.0.0",
     ],
     zip_safe=False,
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.13",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.13",
 )

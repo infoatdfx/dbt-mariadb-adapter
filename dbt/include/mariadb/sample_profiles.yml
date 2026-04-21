@@ -5,17 +5,19 @@ default:
       type: mariadb
       server: [server/host]
       port: [port]  # optional
-      database: [schema] # optional, should be same as schema
+      database: [schema]  # optional, must equal schema if set
       schema: [schema]
       username: [username]
       password: [password]
-      driver: MySQL ODBC 8.0 ANSI Driver
+      charset: utf8mb4
+      collation: utf8mb4_uca1400_ai_ci  # MariaDB-native collation
     prod:
       type: mariadb
       server: [server/host]
-      port: [port]  # optional
-      database: [schema] # optional, should be same as schema
+      port: [port]
+      database: [schema]
       schema: [schema]
       username: [username]
       password: [password]
-      driver: MySQL ODBC 8.0 ANSI Driver
+      charset: utf8mb4
+      collation: utf8mb4_uca1400_ai_ci

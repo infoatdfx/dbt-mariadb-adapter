@@ -1,5 +1,3 @@
-import pytest
-
 from dbt.tests.adapter.incremental.test_incremental_unique_id import (
     BaseIncrementalUniqueKey,
 )
@@ -23,51 +21,47 @@ from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.util import run_dbt, check_relations_equal
 
 
-class TestSimpleMaterializationsMySQL(BaseSimpleMaterializations):
+class TestSimpleMaterializationsMariaDB(BaseSimpleMaterializations):
     pass
 
 
-class TestSingularTestsMySQL(BaseSingularTests):
+class TestSingularTestsMariaDB(BaseSingularTests):
     pass
 
 
-# Ephemeral materializations not supported for MySQL 5.7
-@pytest.mark.skip_profile("mysql5")
-class TestSingularTestsEphemeralMySQL(BaseSingularTestsEphemeral):
+class TestSingularTestsEphemeralMariaDB(BaseSingularTestsEphemeral):
     pass
 
 
-class TestEmptyMySQL(BaseEmpty):
+class TestEmptyMariaDB(BaseEmpty):
     pass
 
 
-# Ephemeral materializations not supported for MySQL 5.7
-@pytest.mark.skip_profile("mysql5")
-class TestEphemeralMySQL(BaseEphemeral):
+class TestEphemeralMariaDB(BaseEphemeral):
     pass
 
 
-class TestIncrementalMySQL(BaseIncremental):
+class TestIncrementalMariaDB(BaseIncremental):
     pass
 
 
-class TestIncrementalUniqueKey(BaseIncrementalUniqueKey):
+class TestIncrementalUniqueKeyMariaDB(BaseIncrementalUniqueKey):
     pass
 
 
-class TestGenericTestsMySQL(BaseGenericTests):
+class TestGenericTestsMariaDB(BaseGenericTests):
     pass
 
 
-class TestSnapshotCheckColsMySQL(BaseSnapshotCheckCols):
+class TestSnapshotCheckColsMariaDB(BaseSnapshotCheckCols):
     pass
 
 
-class TestSnapshotTimestampMySQL(BaseSnapshotTimestamp):
+class TestSnapshotTimestampMariaDB(BaseSnapshotTimestamp):
     pass
 
 
-class TestBaseAdapterMethodMySQL(BaseAdapterMethod):
+class TestBaseAdapterMethodMariaDB(BaseAdapterMethod):
     def test_adapter_methods(self, project, equal_tables):
         result = run_dbt()
         assert len(result) == 3

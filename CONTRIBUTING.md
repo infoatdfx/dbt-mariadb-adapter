@@ -1,96 +1,59 @@
 # Contributing
 
-Contributions are welcome, and they are greatly appreciated! Every little bit
-helps, and credit will always be given.
+Contributions are welcome. This fork is scoped to **MariaDB 11.4+**; MySQL contributions will not be accepted.
 
-You can contribute in many ways:
+## Ways to contribute
 
-## Types of Contributions
+### Report bugs
 
----
+File issues at the project issue tracker. Please include:
 
-### Report Bugs
+- MariaDB server version (`SELECT VERSION();`).
+- Python version (`python --version`).
+- dbt version (`dbt --version`).
+- A minimal reproduction: the dbt model or command, the adapter error, and the state of the target database.
 
-Report bugs at https://github.com/dbeatty10/dbt-mysql/issues.
+### Propose features
 
-If you are reporting a bug, please include:
+Open an issue describing the use case before starting larger work, so scope can be agreed on first.
 
-* Your operating system name and version.
-* Any details about your local setup that might be helpful in troubleshooting.
-* Detailed steps to reproduce the bug.
+### Contribute code
 
-### Fix Bugs
+1. Fork the repository on GitHub.
+2. Clone your fork.
+3. Install in editable mode with the dev dependencies:
 
-Look through the GitHub issues for bugs. Anything tagged with "bug" and "help
-wanted" is open to whoever wants to implement it.
-
-### Implement Features
-
-Look through the GitHub issues for features. Anything tagged with "enhancement"
-and "help wanted" is open to whoever wants to implement it.
-
-### Write Documentation
-
-dbt-mysql could always use more documentation, whether as part of the
-official dbt-mysql docs, in docstrings, or even on the web in blog posts,
-articles, and such.
-
-### Submit Feedback
-
-The best way to send feedback is to file an issue at https://github.com/dbeatty10/dbt-mysql/issues.
-
-If you are proposing a feature:
-
-* Explain in detail how it would work.
-* Keep the scope as narrow as possible, to make it easier to implement.
-* Remember that this is a volunteer-driven project and contributions are
-  welcome :)
-
-## Get Started!
-
----
-
-Ready to contribute? [Here's](https://jarv.is/notes/how-to-pull-request-fork-github/) how to set up `dbt-mysql` for local development.
-
-1. Fork the `dbt-mysql` repo on GitHub.
-2. Clone your fork locally:
     ```shell
-    git clone git@github.com:your_name_here/dbt-mysql.git
-    ```
-
-3. Installation:
-    ```shell
-    python3 -m venv env
-    source env/bin/activate
+    python3 -m venv .venv
+    source .venv/bin/activate
     python3 -m pip install --upgrade pip
     python3 -m pip install -e . -r dev-requirements.txt
     pre-commit install
-    source env/bin/activate
     ```
 
-4. Create a branch for local development:
+4. Create a feature branch:
 
     ```shell
-    git checkout -b name-of-your-bugfix-or-feature
+    git checkout -b feature/short-description
     ```
 
-   Now you can make your changes locally.
-
-5. Run tests:
+5. Run the tests:
 
     ```shell
-    python -m pytest -v tests/unit
-    python -m pytest -v --profile mysql tests/functional
+    make test-unit                # unit tests, no DB required
+    docker-compose up -d mariadb-11-4
+    DBT_MARIADB_PORT=3307 make test-functional
     ```
 
-   Instructions for running integration tests in `tests/README.md`.
+6. Commit (conventional commits preferred) and push your branch.
+7. Open a pull request against `main`. The PR description should state which MariaDB version(s) you tested against.
 
-6. Commit your changes and push your branch to GitHub:
+## Supported versions
 
-    ```shell
-    git add .
-    git commit -m "Your detailed description of your changes."
-    git push origin name-of-your-bugfix-or-feature
-    ```
+| Component | Supported |
+| --------- | --------- |
+| dbt-core  | 1.11.x    |
+| MariaDB   | 11.4 LTS (primary), 11.8 LTS (best effort) |
+| Python    | 3.13      |
 
-7. Submit a pull request through the GitHub website.
+Contributions that reintroduce MySQL compatibility, target MariaDB 10.x, or loosen the Python/dbt-core minimums will not be merged.

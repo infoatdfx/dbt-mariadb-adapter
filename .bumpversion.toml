@@ -1,5 +1,5 @@
 [tool.bumpversion]
-current_version = "1.7.0a1"
+current_version = "2.0.0a1"
 parse = '''
      (?P<major>[\d]+) # major version number
      \.(?P<minor>[\d]+) # minor version number
@@ -35,22 +35,4 @@ values = [
 first_value = "1"
 
 [[tool.bumpversion.files]]
-filename = "setup.py"
-
-[[tool.bumpversion.files]]
-filename = "dbt/adapters/mysql/__version__.py"
-
-[[tool.bumpversion.files]]
-filename = "dbt/adapters/mysql5/__version__.py"
-
-[[tool.bumpversion.files]]
 filename = "dbt/adapters/mariadb/__version__.py"
-
-[[tool.bumpversion.files]]
-filename = "dev-requirements.txt"
-parse = '''
-     (?P<major>[\d]+) # major version number
-     \.(?P<minor>[\d]+) # minor version number
-     .latest
-'''
-serialize = ["{major}.{minor}.latest"]

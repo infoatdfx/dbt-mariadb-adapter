@@ -1,146 +1,75 @@
-# dbt-mysql
+# dbt-mariadb
 
-[![Tests and Code Checks](https://github.com/dbeatty10/dbt-mysql/actions/workflows/main.yml/badge.svg)](https://github.com/dbeatty10/dbt-mysql/actions/workflows/main.yml)
-[![Integration Tests Badge](https://github.com/dbeatty10/dbt-mysql/actions/workflows/integration.yml/badge.svg)](https://github.com/dbeatty10/dbt-mysql/actions/workflows/integration.yml)
+> Fork of [dbeatty10/dbt-mysql](https://github.com/dbeatty10/dbt-mysql), rescoped to MariaDB only.
+> MySQL support has been removed — see [UPSTREAM.md](UPSTREAM.md) for details.
 
-This plugin ports [dbt](https://getdbt.com) functionality to MySQL and MariaDB.
+This plugin ports [dbt](https://getdbt.com) functionality to MariaDB.
 
-This is an experimental plugin:
-- We have not tested it extensively
-- Storage engines other than the default of InnoDB are untested
-- Only tested with [dbt-tests-adapter](https://github.com/dbt-labs/dbt-core/tree/main/tests/adapter) with the following:
-  - MySQL 5.7
-  - MySQL 8.0
-  - MariaDB 10.5
-- Compatiblity with other [dbt packages](https://hub.getdbt.com/) (like [dbt_utils](https://hub.getdbt.com/dbt-labs/dbt_utils/latest/)) is also untested
-- Supported Python Versions are: 3.6, 3.7, 3.8 & 3.9
+## Compatibility
 
-Please read these docs carefully and use at your own risk. [Issues](https://github.com/dbeatty10/dbt-mysql/issues/new) and [PRs](https://github.com/dbeatty10/dbt-mysql/blob/main/CONTRIBUTING.rst#contributing) welcome!
+| Component | Supported versions |
+| --------- | ------------------ |
+| dbt-core  | 1.11.x |
+| MariaDB   | 11.4 LTS (primary), 11.8 LTS (best-effort) |
+| Python    | 3.13 (3.14 under evaluation once dbt-adapters supports it) |
 
-Table of Contents
-=================
+MariaDB 10.x and all MySQL versions are **not** supported by this adapter.
 
-   * [Installation](#installation)
-   * [Supported features](#supported-features)
-      * [MySQL 5.7 configuration gotchas](#mysql-57-configuration-gotchas)
-   * [Configuring your profile](#configuring-your-profile)
-   * [Notes](#notes)
-   * [Running Tests](#running-tests)
-   * [Reporting bugs and contributing code](#reporting-bugs-and-contributing-code)
-
-### Installation
-This plugin can be installed via pip:
+## Installation
 
 ```shell
-$ python -m pip install dbt-mysql
+python -m pip install dbt-mariadb
 ```
 
-### Supported features
+## Configuring your profile
 
-| MariaDB 10.5 | MySQL 5.7 | MySQL 8.0 | Feature                     |
-|:---------:|:---------:|:---:|-----------------------------|
-|     ✅     |     ✅     |  ✅  | Table materialization       |
-|     ✅     |     ✅     |  ✅  | View materialization        |
-|     ✅     |     ✅     |  ✅  | Incremental materialization |
-|     ✅     |     ❌     |  ✅  | Ephemeral materialization   |
-|     ✅     |     ✅     |  ✅  | Seeds                       |
-|     ✅     |     ✅     |  ✅  | Sources                     |
-|     ✅     |     ✅     |  ✅  | Custom data tests           |
-|     ✅     |     ✅     |  ✅  | Docs generate               |
-|     🤷     |     🤷     |  ✅  | Snapshots                   |
-
-Notes:
-- Ephemeral materializations rely upon [Common Table Expressions](https://en.wikipedia.org/wiki/Hierarchical_and_recursive_queries_in_SQL) (CTEs), which are not supported until MySQL 8.0
-- MySQL 5.7 has some configuration gotchas that affect snapshots (see below).
-
-#### MySQL 5.7 configuration gotchas
-
-dbt snapshots might not work properly due to [automatic initialization and updating for `TIMESTAMP`](https://dev.mysql.com/doc/refman/5.7/en/timestamp-initialization.html) if:
-- the output of `SHOW VARIABLES LIKE 'sql_mode'` includes `NO_ZERO_DATE`
-
-A solution is to include the following in a `*.cnf` file:
-```
-[mysqld]
-explicit_defaults_for_timestamp = true
-sql_mode = "ALLOW_INVALID_DATES,{other_sql_modes}"
-```
-where `{other_sql_modes}` is the rest of the modes from the `SHOW VARIABLES LIKE 'sql_mode'` output.
-
-### Configuring your profile
-
-A dbt profile can be configured to run against MySQL using configuration example below.
-
-Use `type: mysql` for MySQL 8.x, `type: mysql5` for MySQL 5.x, and `type: mariadb` for MariaDB.
-
-**Example entry for profiles.yml:**
-
-```
+```yaml
 your_profile_name:
   target: dev
   outputs:
     dev:
-      type: mysql
+      type: mariadb
       server: localhost
       port: 3306
       schema: analytics
-      username: your_mysql_username
-      password: your_mysql_password
+      username: your_mariadb_username
+      password: your_mariadb_password
       ssl_disabled: True
       charset: utf8mb4
-      collation: utf8mb4_0900_ai_ci
+      collation: utf8mb4_uca1400_ai_ci
 ```
 
-| Option          | Description                                                                         | Required?                                                          | Example                                        |
-| --------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
-| type            | The specific adapter to use                                                         | Required                                                           | `mysql`, `mysql5` or `mariadb`                 |
-| server          | The server (hostname) to connect to                                                 | Required                                                           | `yourorg.mysqlhost.com`                        |
-| port            | The port to use                                                                     | Optional                                                           | `3306`                                         |
-| schema          | Specify the schema (database) to build models into                                  | Required                                                           | `analytics`                                    |
-| username        | The username to use to connect to the server                                        | Required                                                           | `dbt_admin`                                    |
-| password        | The password to use for authenticating to the server                                | Required                                                           | `correct-horse-battery-staple`                 |
-| ssl_disabled    | Set to enable or disable TLS connectivity to mysql5.x                               | Optional                                                           | `True` or `False`                              |
-| charset         | Specify charset to be used by a connection                                          | Optional                                                           | `utf8mb4`                                      |
-| collation       | Set to enable or disable TLS connectivity to mysql5.x                               | Optional                                                           | `utf8mb4_0900_ai_ci`                           |
+| Option       | Description                                                  | Required? | Example                          |
+| ------------ | ------------------------------------------------------------ | --------- | -------------------------------- |
+| type         | The adapter to use                                           | Required  | `mariadb`                        |
+| server       | The server (hostname) to connect to                          | Required  | `db.example.com`                 |
+| port         | The port to use                                              | Optional  | `3306`                           |
+| schema       | The schema (MariaDB database) to build models into           | Required  | `analytics`                      |
+| username     | The username                                                 | Required  | `dbt_admin`                      |
+| password     | The password                                                 | Required  | `correct-horse-battery-staple`   |
+| ssl_disabled | Disable TLS                                                  | Optional  | `True` or `False`                |
+| charset      | Connection charset                                           | Optional  | `utf8mb4`                        |
+| collation    | Connection collation (MariaDB-native, e.g. `utf8mb4_uca1400_ai_ci`) | Optional | `utf8mb4_uca1400_ai_ci`     |
 
-### Notes
+Note: the default MySQL collation `utf8mb4_0900_ai_ci` is **not** available on MariaDB. Use a MariaDB collation such as `utf8mb4_uca1400_ai_ci`.
 
-Conflicting terminology is used between:
-- dbt
-- Database management systems (DBMS) like MySQL, Postgres, and Snowflake
-- metadata in the ANSI-standard `information_schema`
+## Notes on terminology
 
-The conflicts include both:
-- the same word meaning different things
-- different words meaning the same thing
+dbt, ANSI `information_schema` and MariaDB use overlapping but not identical words for "database", "schema" and "catalog". This adapter aligns with dbt's terms: a dbt `schema` is a MariaDB `database`, and MariaDB has no notion of an ANSI catalog.
 
-For example, a "database" in MySQL is not the same as a "database" in dbt, but it is equivalent to a "schema" in Postgres 🤯.
+| information_schema    | dbt (and Postgres)    | MariaDB                        |
+| --------------------- | --------------------- | ------------------------------ |
+| catalog               | database              | _undefined / not implemented_  |
+| schema                | schema                | database                       |
+| relation (table/view) | relation              | relation (table/view)          |
+| column                | column                | column                         |
 
-dbt-mysql uses the dbt terms. The native MySQL verbiage is restricted to SQL statements.
+Fully-qualified relation names in MariaDB have two parts (`database.table`), not three.
 
-This cross-walk aligns the terminology:
+## Running tests
 
-| information_schema    | dbt (and Postgres)           | MySQL                            |
-| --------------------- | ---------------------------- | -------------------------------- |
-| catalog               |  database                    | _undefined / not implemented_    |
-| schema                |  schema                      | database                         |
-| relation (table/view) |  relation (table/view)       | relation (table/view)            |
-| column                |  column                      | column                           |
+See [tests/README.md](tests/README.md) for details on running the unit and integration tests. A `docker-compose.yml` is provided to spin up a local MariaDB 11.4 instance.
 
-Additionally, many DBMS have relation names with three parts whereas MySQL has only two. E.g., a fully-qualified table name in Postgres is `database.schema.table` versus `database.table` in MySQL. The missing part in MySQL is the `information_schema` "catalog".
+## Credits
 
-| DBMS               | Fully-qualified relation name | Parts      |
-| ------------------ | ----------------------------- | ---------- |
-| Postgres           |  `database.schema.table`      | 3          |
-| MySQL              |  `database.table`             | 2          |
-
-### Running Tests
-
-See [tests/README.md](tests/README.md) for details on running the integration tests.
-
-### Reporting bugs and contributing code
-
--   Want to report a bug or request a feature? See the [contributing guidelines](https://github.com/dbeatty10/dbt-mysql/blob/main/CONTRIBUTING.rst#contributing), or open [an issue](https://github.com/dbeatty10/dbt-mysql/issues/new).
-
-### Credits
-
-dbt-mysql borrows from [dbt-spark](https://github.com/dbt-labs/dbt-spark) and [dbt-sqlite](https://github.com/codeforkjeff/dbt-sqlite) since Spark and SQLite also use two-part relation names.
+Forked from [`dbeatty10/dbt-mysql`](https://github.com/dbeatty10/dbt-mysql), which itself borrows from [`dbt-spark`](https://github.com/dbt-labs/dbt-spark) and [`dbt-sqlite`](https://github.com/codeforkjeff/dbt-sqlite).

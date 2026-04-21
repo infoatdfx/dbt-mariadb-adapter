@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a bug or an issue you've found with dbt-mysql
+about: Report a bug or an issue you've found with dbt-mariadb
 title: ''
 labels: bug, triage
 assignees: ''

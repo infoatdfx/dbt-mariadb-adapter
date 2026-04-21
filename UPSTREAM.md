@@ -11,7 +11,6 @@ This repository is a hard fork of [dbeatty10/dbt-mysql](https://github.com/dbeat
 | Upstream commit date | 2024-04-26 |
 | Fork date | 2026-04-21 |
 | New package name | `dbt-mariadb` |
-| Maintainer | Juvo / Zetes BI team |
 
 ## Scope of the fork
 

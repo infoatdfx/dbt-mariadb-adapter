@@ -1,126 +1,66 @@
-# Testing dbt-mysql
+# Testing dbt-mariadb
 
 ## Overview
 
-Here are the steps to run the integration tests:
-1. Set environment variables
-1. Run Docker containers (optional)
-1. Run tests
+1. Set environment variables (or copy `.env.example` to `.env`).
+2. Start a MariaDB container via `docker-compose`.
+3. Run unit tests and/or functional tests.
 
-## Simple example
+## Environment variables
 
-Assuming the applicable `dbt-tests-adapter` package is installed and environment variables are set:
-```bash
-PYTHONPATH=. pytest tests/functional/adapter/test_basic.py
-```
-
-## Full example
-
-### Prerequisites
-
-#### Dependencies
-
-`pip install -r ./dev-requirements.txt`
-
-#### Python Version
-
-Python 3.8 and 3.9 are supported test targets and may need to be installed before tests can run.
-
-##### Ubuntu
-
-```
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get update
-sudo apt-get install python3.8 python3.8-distutils python3.9 python3.9-distutils
-```
-
-### Environment variables
-
-Create the following environment variables (e.g., `export {VARIABLE}={value}` in a bash shell or via a tool like [`direnv`](https://direnv.net/)):
-* `DBT_MYSQL_SERVER_NAME`
-* `DBT_MYSQL_USERNAME`
-* `DBT_MYSQL_PASSWORD`
-* `DBT_MARIADB_105_PORT`
-* `DBT_MYSQL_57_PORT`
-* `DBT_MYSQL_80_PORT`
-
-`.env.example` has a listing of environment variables and values. You can use it with Docker by configuring a `.env` file with appropriate variables:
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `DBT_MARIADB_SERVER_NAME` | `localhost` | MariaDB host |
+| `DBT_MARIADB_USERNAME`    | `root`      | MariaDB user |
+| `DBT_MARIADB_PASSWORD`    | `dbt`       | MariaDB password |
+| `DBT_MARIADB_PORT`        | `3307`      | Port exposed by the MariaDB 11.4 container |
+| `DBT_MARIADB_118_PORT`    | `3308`      | Port exposed by the MariaDB 11.8 container |
 
 ```shell
 cp .env.example .env
 $EDITOR .env
 ```
 
-By default, [Docker will automatically load environment variables](https://docs.docker.com/compose/env-file/) from a file named `.env`.
+## Start MariaDB
 
-### Docker
-
-#### Easiest
-
-This command will launch local databases for testing:
 ```shell
-docker-compose up -d
+# MariaDB 11.4 (primary test target)
+docker-compose up -d mariadb-11-4
+
+# MariaDB 11.8 (best-effort secondary)
+docker-compose up -d mariadb-11-8
 ```
 
-Skip to down below and follow the instructions to ["Run tests"](#run-tests).
+Stop with `docker-compose down`.
 
-When finished using the containers:
+## Run tests
+
+Unit tests (no database required):
+
 ```shell
-docker-compose down
+make test-unit
 ```
 
-#### Harder
+Functional tests against MariaDB 11.4:
 
-<details>
-  <summary>More complicated docker setup commands</summary>
-
-[Here](https://medium.com/@crmcmullen/how-to-run-mysql-in-a-docker-container-on-macos-with-persistent-local-data-58b89aec496a) is one guide on "How to Run MySQL in a Docker Container on macOS with Persistent Local Data".
-
-In the docker commands below, the default MySQL username is `root` and the default server name is `localhost`. If they are used unaltered, then you should set the following environment variable values:
-```
-DBT_MYSQL_SERVER_NAME=localhost
-DBT_MYSQL_USERNAME=root
-```
-
-If you use any bash special characters in your password (like `$`), then you will need to escape them (like `DBT_MYSQL_PASSWORD=pas\$word` instead of `DBT_MYSQL_PASSWORD=pas$word`).
-
-#### MySQL 8.0
-`docker run --name mysql8.0 --net dev-network -v /Users/YOUR_USERNAME/Develop/mysql_data/8.0:/var/lib/mysql -p 3306:3306 -d -e MYSQL_ROOT_PASSWORD=$DBT_MYSQL_PASSWORD mysql:8.0`
-
-#### MySQL 5.7
-
-Contents of `/Users/YOUR_USERNAME/Develop/mysql_data/5.7/my.cnf`:
-```
-[mysqld]
-explicit_defaults_for_timestamp = true
-sql_mode = "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
-```
-
-`docker run --name mysql5.7 --net dev-network -v /Users/YOUR_USERNAME/Develop/mysql_data/5.7:/var/lib/mysql -v /Users/YOUR_USERNAME/Develop/mysql_data/5.7/my.cnf:/etc/my.cnf -p 3307:3306 -d -e MYSQL_ROOT_PASSWORD=$DBT_MYSQL_PASSWORD mysql:5.7`
-
-</details>
-
-### Run tests
-
-Run all the tests via `make`:
 ```shell
-make unit
-make integration
+make test-functional
 ```
 
-Or run all the tests via `tox`:
+Functional tests against MariaDB 11.8 (best effort):
+
 ```shell
-tox
+make test-functional-118
 ```
 
-Or run the test specs directly
+Everything:
+
 ```shell
-PYTHONPATH=. pytest -v --profile mysql tests/functional && \
-PYTHONPATH=. pytest -v --profile mysql5 tests/functional && \
-PYTHONPATH=. pytest -v --profile mariadb tests/functional
+make test-all
 ```
 
-Or run a single test
+Run a single test:
+
 ```shell
-pytest -v --profile mysql tests/functional/adapter/test_basic.py::TestEmptyMySQL::test_empty
+DBT_MARIADB_PORT=3307 pytest -v tests/functional/adapter/test_basic.py::TestEmptyMariaDB::test_empty
 ```

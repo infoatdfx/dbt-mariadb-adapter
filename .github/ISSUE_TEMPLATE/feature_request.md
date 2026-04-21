@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for dbt-mysql
+about: Suggest an idea for dbt-mariadb
 title: ''
 labels: enhancement, triage
 assignees: ''
