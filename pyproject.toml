@@ -1,0 +1,121 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dbt-mariadb"
+description = "A dbt adapter for MariaDB 11.4+"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+keywords = ["dbt", "mariadb", "adapter", "analytics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "dbt-core>=1.11.0,<2.0.0",
+    "dbt-adapters>=1.22.0,<2.0.0",
+    "dbt-common>=1.37.0,<2.0.0",
+    "mysql-connector-python>=9.0.0",
+]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/infoatdfx/dbt-mariadb-adapter"
+Changelog = "https://github.com/infoatdfx/dbt-mariadb-adapter/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+# Test-only dependencies (no lint/format tooling).
+test = [
+    "dbt-tests-adapter>=1.22.0,<2.0.0",
+    "pytest>=8.0,<9.0",
+    "pytest-dotenv~=0.5",
+    "pytest-xdist~=3.6",
+    "freezegun~=1.5",
+    "pyyaml",
+]
+# Static analysis: ruff (replaces black + flake8) and mypy.
+lint = [
+    "ruff~=0.8",
+    "mypy~=1.11",
+]
+# Packaging & release.
+build = [
+    "build~=1.2",
+    "twine~=5.1",
+    "wheel~=0.44",
+    "bump-my-version~=0.28",
+]
+# Everything a contributor needs locally.
+dev = [
+    "dbt-mariadb[test]",
+    "dbt-mariadb[lint]",
+    "dbt-mariadb[build]",
+    "pre-commit~=3.8",
+    "pre-commit-hooks~=5.0",
+    "ipdb~=0.13",
+]
+
+[tool.hatch.version]
+path = "dbt/adapters/mariadb/__version__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "dbt/adapters/mariadb",
+    "dbt/include/mariadb",
+    "README.md",
+    "CHANGELOG.md",
+    "UPSTREAM.md",
+    "LICENSE",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["dbt"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"dbt/include/mariadb" = "dbt/include/mariadb"
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["dbt/include"]  # Jinja-SQL, not Python
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",  # line length handled by formatter
+    "B008",  # default-arg function calls are fine for dataclasses
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B008", "RUF012"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_ignores = true
+disallow_untyped_defs = false  # incremental tightening
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests/unit", "tests/functional"]

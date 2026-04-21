@@ -11,13 +11,13 @@ updates:
       dbt:
         patterns:
           - "dbt-*"
-      lint-and-test:
+      test-and-lint:
         patterns:
-          - "black"
-          - "flake8"
-          - "mypy"
           - "pytest*"
+          - "ruff*"
+          - "mypy"
           - "pre-commit*"
+          - "freezegun"
 
   - package-ecosystem: github-actions
     directory: /
